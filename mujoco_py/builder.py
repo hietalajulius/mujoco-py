@@ -36,7 +36,8 @@ def get_nvidia_lib_dir():
     if len(paths) == 0:
         return None
     if len(paths) > 1:
-        print("Choosing the latest nvidia driver: %s, among %s" % (paths[-1], str(paths)))
+        print("Choosing the latest nvidia driver: %s, among %s" %
+              (paths[-1], str(paths)))
 
     return paths[-1]
 
@@ -67,8 +68,7 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
         Builder = MacExtensionBuilder
     elif sys.platform == 'linux':
         _ensure_set_env_var("LD_LIBRARY_PATH", lib_path)
-        if os.getenv('MUJOCO_PY_FORCE_CPU') is None and get_nvidia_lib_dir() is not None:
-            _ensure_set_env_var("LD_LIBRARY_PATH", get_nvidia_lib_dir())
+        if os.getenv('MUJOCO_PY_FORCE_CPU') is None:
             Builder = LinuxGPUExtensionBuilder
         else:
             Builder = LinuxCPUExtensionBuilder
@@ -84,7 +84,8 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
     builder = Builder(mujoco_path)
     cext_so_path = builder.get_so_file_path()
 
-    lockpath = os.path.join(os.path.dirname(cext_so_path), 'mujocopy-buildlock')
+    lockpath = os.path.join(os.path.dirname(
+        cext_so_path), 'mujocopy-buildlock')
 
     with fasteners.InterProcessLock(lockpath):
         mod = None
@@ -148,6 +149,7 @@ def fix_shared_library(so_file, name, library_path):
     """ Used to fixup shared libraries on Linux """
     subprocess.check_call(['patchelf', '--remove-rpath', so_file])
     ldd_output = subprocess.check_output(['ldd', so_file]).decode('utf-8')
+    print("LDD output", ldd_output)
 
     if name in ldd_output:
         subprocess.check_call(['patchelf', '--remove-needed', name, so_file])
@@ -198,8 +200,10 @@ class MujocoExtensionBuilder():
 
     def __init__(self, mujoco_path):
         self.mujoco_path = mujoco_path
-        python_version = str(sys.version_info.major) + str(sys.version_info.minor)
-        self.version = '%s_%s_%s' % (get_version(), python_version, self.build_base())
+        python_version = str(sys.version_info.major) + \
+            str(sys.version_info.minor)
+        self.version = '%s_%s_%s' % (
+            get_version(), python_version, self.build_base())
         self.extension = Extension(
             'mujoco_py.cymj',
             sources=[join(self.CYMJ_DIR_PATH, "cymj.pyx")],
@@ -247,7 +251,8 @@ class MujocoExtensionBuilder():
 
     def get_so_file_path(self):
         dir_path = abspath(dirname(__file__))
-        python_version = str(sys.version_info.major) + str(sys.version_info.minor)
+        python_version = str(sys.version_info.major) + \
+            str(sys.version_info.minor)
         return join(dir_path, "generated", "cymj_{}_{}.so".format(self.version, python_version))
 
 
@@ -273,7 +278,8 @@ class LinuxCPUExtensionBuilder(MujocoExtensionBuilder):
         so_file_path = super()._build_impl()
         # Removes absolute paths to libraries. Allows for dynamic loading.
         fix_shared_library(so_file_path, 'libmujoco200.so', 'libmujoco200.so')
-        fix_shared_library(so_file_path, 'libglewosmesa.so', 'libglewosmesa.so')
+        fix_shared_library(so_file_path, 'libglewosmesa.so',
+                           'libglewosmesa.so')
         return so_file_path
 
 
@@ -289,6 +295,7 @@ class LinuxGPUExtensionBuilder(MujocoExtensionBuilder):
 
     def _build_impl(self):
         so_file_path = super()._build_impl()
+        print("SO PATH", so_file_path)
         fix_shared_library(so_file_path, 'libOpenGL.so', 'libOpenGL.so.0')
         fix_shared_library(so_file_path, 'libEGL.so', 'libEGL.so.1')
         fix_shared_library(so_file_path, 'libmujoco200.so', 'libmujoco200.so')
