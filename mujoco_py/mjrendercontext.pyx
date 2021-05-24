@@ -107,7 +107,6 @@ cdef class MjRenderContext(object):
         self.con = WrapMjrContext(&self._con)
 
     def _setup_opengl_context(self, offscreen, device_id, opengl_backend, quiet=False):
-        print("Device ID being input", device_id)
         if opengl_backend is None and (not offscreen or sys.platform == 'darwin'):
             # default to glfw for onscreen viewing or mac (both offscreen/onscreen)
             opengl_backend = 'glfw'
