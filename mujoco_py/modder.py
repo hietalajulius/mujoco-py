@@ -5,12 +5,14 @@ MuJoCo simulation. This allows for super fast scene generation.
 from collections import defaultdict
 import numpy as np
 from mujoco_py import cymj
+import copy
 
 
 class BaseModder():
 
-    def __init__(self, sim, random_state=None):
-        self.sim = sim
+    def __init__(self, env, random_state=None):
+        print("PRÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖt")
+        self.env = env
         if random_state is None:
             self.random_state = np.random.RandomState()
         elif isinstance(random_state, int):
@@ -18,11 +20,6 @@ class BaseModder():
             self.random_state = np.random.RandomState(random_state)
         else:
             self.random_state = random_state
-
-    @property
-    def model(self):
-        # Available for quick convenience access
-        return self.sim.model
 
 
 class LightModder(BaseModder):
@@ -36,7 +33,7 @@ class LightModder(BaseModder):
 
         value = list(value)
         assert len(value) == 3, "Expected 3-dim value, got %s" % value
-        self.model.light_pos[lightid] = value
+        self.env.sim.model.light_pos[lightid] = value
 
     def set_dir(self, name, value):
         lightid = self.get_lightid(name)
@@ -45,13 +42,13 @@ class LightModder(BaseModder):
         value = list(value)
         assert len(value) == 3, "Expected 3-dim value, got %s" % value
 
-        self.model.light_dir[lightid] = value
+        self.env.sim.model.light_dir[lightid] = value
 
     def set_active(self, name, value):
         lightid = self.get_lightid(name)
         assert lightid > -1, "Unkwnown light %s" % name
 
-        self.model.light_active[lightid] = value
+        self.env.sim.model.light_active[lightid] = value
 
     def set_specular(self, name, value):
         lightid = self.get_lightid(name)
@@ -60,7 +57,7 @@ class LightModder(BaseModder):
         value = list(value)
         assert len(value) == 3, "Expected 3-dim value, got %s" % value
 
-        self.model.light_specular[lightid] = value
+        self.env.sim.model.light_specular[lightid] = value
 
     def set_ambient(self, name, value):
         lightid = self.get_lightid(name)
@@ -69,7 +66,7 @@ class LightModder(BaseModder):
         value = list(value)
         assert len(value) == 3, "Expected 3-dim value, got %s" % value
 
-        self.model.light_ambient[lightid] = value
+        self.env.sim.model.light_ambient[lightid] = value
 
     def set_diffuse(self, name, value):
         lightid = self.get_lightid(name)
@@ -78,12 +75,12 @@ class LightModder(BaseModder):
         value = list(value)
         assert len(value) == 3, "Expected 3-dim value, got %s" % value
 
-        self.model.light_diffuse[lightid] = value
+        self.env.sim.model.light_diffuse[lightid] = value
 
     def set_castshadow(self, name, value):
         lightid = self.get_lightid(name)
         assert lightid > -1, "Unkwnown light %s" % name
-        self.model.light_castshadow[lightid] = value
+        self.env.sim.model.light_castshadow[lightid] = value
 
     def rand_all(self, name):
         self.rand_pos(name)
@@ -126,7 +123,7 @@ class LightModder(BaseModder):
         self.set_castshadow(name, value)
 
     def get_lightid(self, name):
-        return self.model.light_name2id(name)
+        return self.env.sim.model.light_name2id(name).copy()
 
 
 class CameraModder(BaseModder):
@@ -138,7 +135,7 @@ class CameraModder(BaseModder):
         camid = self.get_camid(name)
         assert 0 < value < 180
         assert camid > -1, "Unknown camera %s" % name
-        self.model.cam_fovy[camid] = value
+        self.env.sim.model.cam_fovy[camid] = value
 
     def rand_fovy(self, name):
         value = self.random_state.choice((43, 44, 45, 46, 47), 1)
@@ -147,7 +144,7 @@ class CameraModder(BaseModder):
     def get_quat(self, name):
         camid = self.get_camid(name)
         assert camid > -1, "Unknown camera %s" % name
-        return self.model.cam_quat[camid]
+        return self.env.sim.model.cam_quat[camid].copy()
 
     def set_quat(self, name, value):
         value = list(value)
@@ -155,12 +152,12 @@ class CameraModder(BaseModder):
             "Expectd value of length 4, instead got %s" % value)
         camid = self.get_camid(name)
         assert camid > -1, "Unknown camera %s" % name
-        self.model.cam_quat[camid] = value
+        self.env.sim.model.cam_quat[camid] = value
 
     def get_pos(self, name):
         camid = self.get_camid(name)
         assert camid > -1, "Unknown camera %s" % name
-        return self.model.cam_pos[camid]
+        return self.env.sim.model.cam_pos[camid].copy()
 
     def rand_all(self, name):
         self.rand_fovy(name)
@@ -173,7 +170,7 @@ class CameraModder(BaseModder):
             "Expected value of length 3, instead got %s" % value)
         camid = self.get_camid(name)
         assert camid > -1
-        self.model.cam_pos[camid] = value
+        self.env.sim.model.cam_pos[camid] = value
 
     def rand_pos(self, name):
         original_pos = np.array([1.95, 0.0, 1.5])
@@ -201,7 +198,7 @@ class CameraModder(BaseModder):
         self.set_quat(name, value_quat)
 
     def get_camid(self, name):
-        return self.model.camera_name2id(name)
+        return self.env.sim.model.camera_name2id(name).copy()
 
 
 class MaterialModder(BaseModder):
@@ -221,24 +218,24 @@ class MaterialModder(BaseModder):
     def set_specularity(self, name, value):
         assert 0 <= value <= 1.0
         mat_id = self.get_mat_id(name)
-        self.model.mat_specular[mat_id] = value
+        self.env.sim.model.mat_specular[mat_id] = value
 
     def set_shininess(self, name, value):
         assert 0 <= value <= 1.0
         mat_id = self.get_mat_id(name)
-        self.model.mat_shininess[mat_id] = value
+        self.env.sim.model.mat_shininess[mat_id] = value
 
     def set_reflectance(self, name, value):
         assert 0 <= value <= 1.0
         mat_id = self.get_mat_id(name)
-        self.model.mat_reflectance[mat_id] = value
+        self.env.sim.model.mat_reflectance[mat_id] = value
 
     def set_texrepeat(self, name, repeat_x, repeat_y):
         mat_id = self.get_mat_id(name)
         # ensure the following is set to false, so that repeats are
         # relative to the extent of the body.
-        self.model.mat_texuniform[mat_id] = 0
-        self.model.mat_texrepeat[mat_id, :] = [repeat_x, repeat_y]
+        self.env.sim.model.mat_texuniform[mat_id] = 0
+        self.env.sim.model.mat_texrepeat[mat_id, :] = [repeat_x, repeat_y]
 
     def rand_all(self, name):
         self.rand_specularity(name)
@@ -264,8 +261,8 @@ class MaterialModder(BaseModder):
 
     def get_mat_id(self, name):
         """ Returns the material id based on the geom name. """
-        geom_id = self.model.geom_name2id(name)
-        return self.model.geom_matid[geom_id]
+        geom_id = self.env.sim.model.geom_name2id(name).copy()
+        return self.env.sim.model.geom_matid[geom_id].copy()
 
 
 class TextureModder(BaseModder):
@@ -287,8 +284,8 @@ class TextureModder(BaseModder):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.textures = [Texture(self.model, i)
-                         for i in range(self.model.ntex)]
+        self.textures = [Texture(self.env.sim.model, i)
+                         for i in range(self.env.sim.model.ntex)]
         self._build_tex_geom_map()
 
         # These matrices will be used to rapidly synthesize
@@ -298,22 +295,22 @@ class TextureModder(BaseModder):
     def get_texture(self, name):
         if name == 'skybox':
             tex_id = -1
-            for i in range(self.model.ntex):
+            for i in range(self.env.sim.model.ntex):
                 # TODO: Don't hardcode this
                 skybox_textype = 2
-                if self.model.tex_type[i] == skybox_textype:
+                if self.env.sim.model.tex_type[i] == skybox_textype:
                     tex_id = i
             assert tex_id >= 0, "Model has no skybox"
         elif name == 'skin':
-            mat_id = self.model.skin_matid[0]
+            mat_id = self.env.sim.model.skin_matid[0]
             assert mat_id >= 0, "Skin has no assigned material"
-            tex_id = self.model.mat_texid[mat_id]
+            tex_id = self.env.sim.model.mat_texid[mat_id]
             assert tex_id >= 0, "Material has no assigned texture"
         else:
-            geom_id = self.model.geom_name2id(name)
-            mat_id = self.model.geom_matid[geom_id]
+            geom_id = self.env.sim.model.geom_name2id(name)
+            mat_id = self.env.sim.model.geom_matid[geom_id]
             assert mat_id >= 0, "Geom has no assigned material"
-            tex_id = self.model.mat_texid[mat_id]
+            tex_id = self.env.sim.model.mat_texid[mat_id]
             assert tex_id >= 0, "Material has no assigned texture"
 
         texture = self.textures[tex_id]
@@ -326,7 +323,7 @@ class TextureModder(BaseModder):
         elif name == 'skin':
             return self._skin_checker_mat
         else:
-            geom_id = self.model.geom_name2id(name)
+            geom_id = self.env.sim.model.geom_name2id(name)
             return self._geom_checker_mats[geom_id]
 
     def set_checker(self, name, rgb1, rgb2):
@@ -393,7 +390,7 @@ class TextureModder(BaseModder):
 
     def randomize(self):
         print("Tecture randomization")
-        for name in self.sim.model.geom_names:
+        for name in self.env.sim.model.geom_names:
             self.rand_all(name)
 
     def rand_all(self, name):
@@ -429,9 +426,9 @@ class TextureModder(BaseModder):
         Uploads the texture to the GPU so it's available in the rendering.
         """
         texture = self.get_texture(name)
-        if not self.sim.render_contexts:
-            cymj.MjRenderContextOffscreen(self.sim)
-        for render_context in self.sim.render_contexts:
+        if not self.env.sim.render_contexts:
+            cymj.MjRenderContextOffscreen(self.env.sim)
+        for render_context in self.env.sim.render_contexts:
             render_context.upload_texture(texture.id)
 
     def whiten_materials(self, geom_names=None):
@@ -446,11 +443,11 @@ class TextureModder(BaseModder):
         geom_names = geom_names or []
         if geom_names:
             for name in geom_names:
-                geom_id = self.model.geom_name2id(name)
-                mat_id = self.model.geom_matid[geom_id]
-                self.model.mat_rgba[mat_id, :] = 1.0
+                geom_id = self.env.sim.model.geom_name2id(name)
+                mat_id = self.env.sim.model.geom_matid[geom_id]
+                self.env.sim.model.mat_rgba[mat_id, :] = 1.0
         else:
-            self.model.mat_rgba[:] = 1.0
+            self.env.sim.model.mat_rgba[:] = 1.0
 
     def get_rand_rgb(self, n=1):
         def _rand_rgb():
@@ -466,10 +463,10 @@ class TextureModder(BaseModder):
         # Build a map from tex_id to geom_ids, so we can check
         # for collisions.
         self._geom_ids_by_tex_id = defaultdict(list)
-        for geom_id in range(self.model.ngeom):
-            mat_id = self.model.geom_matid[geom_id]
+        for geom_id in range(self.env.sim.model.ngeom):
+            mat_id = self.env.sim.model.geom_matid[geom_id]
             if mat_id >= 0:
-                tex_id = self.model.mat_texid[mat_id]
+                tex_id = self.env.sim.model.mat_texid[mat_id]
                 if tex_id >= 0:
                     self._geom_ids_by_tex_id[tex_id].append(geom_id)
 
@@ -484,15 +481,15 @@ class TextureModder(BaseModder):
         for each texture. To use for fast creation of checkerboard patterns
         """
         self._geom_checker_mats = []
-        for geom_id in range(self.model.ngeom):
-            mat_id = self.model.geom_matid[geom_id]
-            tex_id = self.model.mat_texid[mat_id]
+        for geom_id in range(self.env.sim.model.ngeom):
+            mat_id = self.env.sim.model.geom_matid[geom_id]
+            tex_id = self.env.sim.model.mat_texid[mat_id]
             texture = self.textures[tex_id]
             h, w = texture.bitmap.shape[:2]
             self._geom_checker_mats.append(self._make_checker_matrices(h, w))
 
         #add skin
-        skin_tex_id = self.model.mat_texid[self.model.skin_matid[0]]
+        skin_tex_id = self.env.sim.model.mat_texid[self.env.sim.model.skin_matid[0]]
         if skin_tex_id >= 0:
             texture = self.textures[skin_tex_id]
             h, w = texture.bitmap.shape[:2]
@@ -502,9 +499,9 @@ class TextureModder(BaseModder):
 
         #add skybox
         skybox_tex_id = -1
-        for tex_id in range(self.model.ntex):
+        for tex_id in range(self.env.sim.model.ntex):
             skybox_textype = 2
-            if self.model.tex_type[tex_id] == skybox_textype:
+            if self.env.sim.model.tex_type[tex_id] == skybox_textype:
                 skybox_tex_id = tex_id
         if skybox_tex_id >= 0:
             texture = self.textures[skybox_tex_id]
@@ -535,11 +532,11 @@ class Texture():
 
     def __init__(self, model, tex_id):
         self.id = tex_id
-        self.type = MJT_TEXTURE_ENUM[model.tex_type[tex_id]]
-        self.height = model.tex_height[tex_id]
-        self.width = model.tex_width[tex_id]
-        self.tex_adr = model.tex_adr[tex_id]
-        self.tex_rgb = model.tex_rgb
+        self.type = MJT_TEXTURE_ENUM[copy.copy(model.tex_type[tex_id])]
+        self.height = copy.copy(model.tex_height[tex_id])
+        self.width = copy.copy(model.tex_width[tex_id])
+        self.tex_adr = copy.copy(model.tex_adr[tex_id])
+        self.tex_rgb = copy.copy(model.tex_rgb)
 
     @property
     def bitmap(self):
